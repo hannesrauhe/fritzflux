@@ -17,8 +17,8 @@ DefaultFFConfig = {
     "fb_pass":"",
     "i_address":"localhost",
     "i_port":8086,
-    "i_user":"",
-    "i_pass":"",
+    "i_user":"root",
+    "i_pass":"root",
     "i_database":"",
     "i_url":"",
     "i_token":"",
@@ -38,9 +38,8 @@ class FritzFlux:
       self.ic_cloud = None
 
     if len(ff_config["i_database"])>0:
-      self.ic = influxdb.InfluxDBClient(host=ff_config["i_address"], port=ff_config["i_port"])
-      self.ic.create_database(ff_config["i_database"])
-      self.ic.switch_database(ff_config["i_database"])
+      self.ic = influxdb.InfluxDBClient(host=ff_config["i_address"], port=ff_config["i_port"],
+                                        username=ff_config["i_user"], password=ff_config["i_pass"], database=ff_config["i_database"])
     else:
       self.ic = None
     self.config = ff_config
@@ -83,5 +82,5 @@ class FritzFlux:
       print("Written to the cloud")
     if self.ic:
       self.ic.write_points(lines, protocol="line_protocol", time_precision="s")
-      print("Written to local database",self.config["i_database"])
+      print("Written to database",self.config["i_database"],"on host",self.config["i_address"])
 
