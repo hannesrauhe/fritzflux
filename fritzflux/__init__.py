@@ -4,7 +4,7 @@ from fritzconnection.lib.fritzwlan import FritzWLAN
 from fritzconnection.lib.fritzstatus import FritzStatus
 from influxdb import line_protocol
 from influxdb_client import InfluxDBClient
-from influxdb_client.client.write_api import SYNCHRONOUS
+from influxdb_client.client.write_api import SYNCHRONOUS, WritePrecision
 import influxdb
 import json
 import time
@@ -49,7 +49,7 @@ class FritzFlux:
         "points": []
     }
 
-    t = int(time.time()*1000)
+    t = int(time.time())
     for d in self.fh.device_informations():
       temp = float(d["NewTemperatureCelsius"])/10
       name = d["NewDeviceName"]
@@ -75,9 +75,10 @@ class FritzFlux:
     print(lines)
 
     if len(self.config["i_url"])>0:
+
       write_api = self.ic.write_api(write_options=SYNCHRONOUS)
-      write_api.write(self.config["i_bucket"], self.config["i_org"], lines)
+      write_api.write(self.config["i_bucket"], self.config["i_org"], lines, write_precision=WritePrecision.S)
       print("Written to the cloud")
     else:
-      self.ic.write_points(lines, protocol="line_protocol", time_precision="ms")
+      self.ic.write_points(lines, protocol="line_protocol", time_precision="s")
 
