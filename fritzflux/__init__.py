@@ -19,7 +19,7 @@ DefaultFFConfig = {
     "i_port":8086,
     "i_user":"",
     "i_pass":"",
-    "i_database":"fritzdata",
+    "i_database":"",
     "i_url":"",
     "i_token":"",
     "i_org": "",
@@ -33,11 +33,16 @@ class FritzFlux:
     self.fs = FritzStatus(self.fc)
     self.fh = FritzHomeAutomation(self.fc)
     if len(ff_config["i_url"])>0:
-      self.ic = InfluxDBClient(url=ff_config["i_url"], token=ff_config["i_token"])
+      self.ic_cloud = InfluxDBClient(url=ff_config["i_url"], token=ff_config["i_token"])
     else:
+      self.ic_cloud = None
+
+    if len(ff_config["i_database"])>0:
       self.ic = influxdb.InfluxDBClient(host=ff_config["i_address"], port=ff_config["i_port"])
       self.ic.create_database(ff_config["i_database"])
       self.ic.switch_database(ff_config["i_database"])
+    else:
+      self.ic = None
     self.config = ff_config
 
   def push(self):
@@ -56,8 +61,6 @@ class FritzFlux:
       if temp > 0:
         m = {"measurement": name, "fields": {"temp": temp}, "time": t}
         json_body["points"].append(m)
-    #  else:
-    #   print(d)
 
     f_status = {
         "uptime": (self.fs.uptime, "seconds"),
@@ -74,11 +77,11 @@ class FritzFlux:
     lines = line_protocol.make_lines(json_body)
     print(lines)
 
-    if len(self.config["i_url"])>0:
-
-      write_api = self.ic.write_api(write_options=SYNCHRONOUS)
+    if self.ic_cloud:
+      write_api = self.ic_cloud.write_api(write_options=SYNCHRONOUS)
       write_api.write(self.config["i_bucket"], self.config["i_org"], lines, write_precision=WritePrecision.S)
       print("Written to the cloud")
-    else:
+    if self.ic:
       self.ic.write_points(lines, protocol="line_protocol", time_precision="s")
+      print("Written to local database",self.config["i_database"])
 
