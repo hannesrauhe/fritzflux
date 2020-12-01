@@ -3,45 +3,50 @@ from fritzconnection.lib.fritzhomeauto import FritzHomeAutomation
 from fritzconnection.lib.fritzwlan import FritzWLAN
 from fritzconnection.lib.fritzstatus import FritzStatus
 from influxdb import line_protocol
-from influxdb_client import InfluxDBClient
+from influxdb_client import InfluxDBClient # 2.x
 from influxdb_client.client.write_api import SYNCHRONOUS, WritePrecision
-import influxdb
+import influxdb # 1.x
 import json
 import time
 import socket
 
 
 DefaultFFConfig = {
-    "fb_address":"fritz.box",
-    "fb_user":"",
-    "fb_pass":"",
-    "i_address":"localhost",
-    "i_port":8086,
-    "i_user":"root",
-    "i_pass":"root",
-    "i_database":"",
-    "i_url":"",
-    "i_token":"",
-    "i_org": "",
-    "i_bucket": "",
-    "hostname":socket.gethostname()
+    "fb_address": "fritz.box",
+    "fb_user": "",
+    "fb_pass": "",
+    "influxdb_connections": [{
+        "address": "localhost",
+        "port": 8086,
+        "user": "root",
+        "pass": "root",
+        "database": ""
+        },
+        {
+        "url": "",
+        "token": "",
+        "org": "",
+        "bucket": ""
+    }],
+    "hostname": socket.gethostname()
 }
+
+def is_influx2_db(c):
+  return "url" in c and len(c["url"]) > 0
 
 class FritzFlux:
   def __init__(self, ff_config):
     self.fc = FritzConnection(address=ff_config["fb_address"], user=ff_config["fb_user"], password=ff_config["fb_pass"])
     self.fs = FritzStatus(self.fc)
     self.fh = FritzHomeAutomation(self.fc)
-    if len(ff_config["i_url"])>0:
-      self.ic_cloud = InfluxDBClient(url=ff_config["i_url"], token=ff_config["i_token"])
-    else:
-      self.ic_cloud = None
-
-    if len(ff_config["i_database"])>0:
-      self.ic = influxdb.InfluxDBClient(host=ff_config["i_address"], port=ff_config["i_port"],
-                                        username=ff_config["i_user"], password=ff_config["i_pass"], database=ff_config["i_database"])
-    else:
-      self.ic = None
+    self.ic = []
+    for iconfig in ff_config["influxdb_connections"]:
+      if is_influx2_db(iconfig):
+        self.ic.append(InfluxDBClient(
+            url=iconfig["url"], token=iconfig["token"]))
+      else:
+        self.ic.append(influxdb.InfluxDBClient(host=iconfig["address"], port=iconfig["port"],
+                                               username=iconfig["user"], password=iconfig["pass"], database=iconfig["database"]))
     self.config = ff_config
 
   def push(self):
@@ -76,11 +81,17 @@ class FritzFlux:
     lines = line_protocol.make_lines(json_body)
     print(lines)
 
-    if self.ic_cloud:
-      write_api = self.ic_cloud.write_api(write_options=SYNCHRONOUS)
-      write_api.write(self.config["i_bucket"], self.config["i_org"], lines, write_precision=WritePrecision.S)
-      print("Written to the cloud")
-    if self.ic:
-      self.ic.write_points(lines, protocol="line_protocol", time_precision="s")
-      print("Written to database",self.config["i_database"],"on host",self.config["i_address"])
+    for iconfig, ic in zip(self.config["influxdb_connections"], self.ic):
+      try:
+        if is_influx2_db(iconfig):
+          write_api = ic.write_api(write_options=SYNCHRONOUS)
+          write_api.write(iconfig["bucket"], iconfig["org"],
+                          lines, write_precision=WritePrecision.S)
+          print("Written to Influx 2.x bucket", iconfig["bucket"], "on host", iconfig["url"])
+        else:
+          ic.write_points(lines, protocol="line_protocol", time_precision="s")
+          print("Written to Influx 1.x database",
+                iconfig["database"], "on host", iconfig["address"])
+      except Exception as e:
+        print("Failed to write to connection:", iconfig, "Error:", e)
 

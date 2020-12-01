@@ -3,7 +3,7 @@ import sys, json
 from pathlib import Path,PurePath
 
 config_dir = PurePath(Path.joinpath(Path.home(), ".fritzflux"))
-config_path = Path.joinpath(config_dir, "fritzflux.conf")
+config_path = Path.joinpath(config_dir, "config.json")
 
 def create_config(config_dict={}, extend=False):
     if not Path(config_path).exists() or extend:
