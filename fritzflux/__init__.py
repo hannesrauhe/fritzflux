@@ -61,9 +61,10 @@ class FritzFlux:
     t = int(time.time())
     for d in self.fh.device_informations():
       temp = float(d["NewTemperatureCelsius"])/10
+      temp_set = float(d['NewHkrSetTemperature'])/10
       name = d["NewDeviceName"]
       if temp > 0:
-        m = {"measurement": name, "fields": {"temp": temp}, "time": t}
+        m = {"measurement": name, "fields": {"temp": temp, "temp_set": temp_set}, "time": t}
         json_body["points"].append(m)
 
     f_status = {
