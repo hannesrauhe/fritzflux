@@ -66,10 +66,10 @@ class FritzFlux:
         fields["temp"] = float(d["NewTemperatureCelsius"])/10
         fields["temp_set"] = float(d['NewHkrSetTemperature'])/10
       if d['NewMultimeterIsValid'] == "VALID":
-        fields["power"] = float(d["NewMultimeterPower"])
+        fields["power"] = float(d["NewMultimeterPower"])/100
         fields["energy"] = float(d["NewMultimeterEnergy"])
       if d['NewSwitchIsValid'] == "VALID":
-        fields["SwitchState"] = d["NewSwitchState"]
+        fields["switch_state"] = d["NewSwitchState"]
 
       if len(fields) > 0:
         m = {"measurement": name, "fields": fields, "time": t}
